@@ -55,9 +55,9 @@ type Router struct {
 	middlewares []Constructor
 }
 
-func (r *Router) Use(constructors ...Constructor) {
-
-	r.middlewares = constructors
+func (r *Router) Use(constructors ...Constructor) *Router {
+	r.middlewares = append(r.middlewares, constructors...)
+	return r
 }
 
 // Match matches registered routes against the request.
@@ -105,11 +105,6 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !r.KeepContext {
 		defer context.Clear(req)
 	}
-
-	for i := len(r.middlewares) - 1; i >= 0; i-- {
-		handler = r.middlewares[i](handler)
-	}
-
 	handler.ServeHTTP(w, req)
 }
 
@@ -181,14 +176,29 @@ func (r *Router) NewRoute() *Route {
 // Handle registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.Handler().
 func (r *Router) Handle(path string, handler http.Handler) *Route {
-	return r.NewRoute().Path(path).Handler(handler)
+	h := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		for i := len(r.middlewares) - 1; i >= 0; i-- {
+			handler = r.middlewares[i](handler)
+		}
+
+		handler.ServeHTTP(w, req)
+	})
+	return r.NewRoute().Path(path).Handler(h)
 }
 
 // HandleFunc registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.HandlerFunc().
 func (r *Router) HandleFunc(path string, f func(http.ResponseWriter,
 	*http.Request)) *Route {
-	return r.NewRoute().Path(path).HandlerFunc(f)
+	h := func(w http.ResponseWriter, req *http.Request) {
+		var handler http.Handler = http.HandlerFunc(f)
+		for i := len(r.middlewares) - 1; i >= 0; i-- {
+			handler = r.middlewares[i](handler)
+		}
+
+		handler.ServeHTTP(w, req)
+	}
+	return r.NewRoute().Path(path).HandlerFunc(h)
 }
 
 // Headers registers a new route with a matcher for request header values.
