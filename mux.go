@@ -35,6 +35,8 @@ func NewRouter() *Router {
 //     }
 //
 // This will send all incoming requests to the router.
+type Constructor func(http.Handler) http.Handler
+
 type Router struct {
 	// Configurable Handler to be used when no route matches.
 	NotFoundHandler http.Handler
@@ -48,6 +50,14 @@ type Router struct {
 	strictSlash bool
 	// If true, do not clear the request context after handling the request
 	KeepContext bool
+	// Middlewares for this router
+
+	middlewares []Constructor
+}
+
+func (r *Router) Use(constructors ...Constructor) {
+
+	r.middlewares = constructors
 }
 
 // Match matches registered routes against the request.
@@ -95,6 +105,11 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !r.KeepContext {
 		defer context.Clear(req)
 	}
+
+	for i := len(r.middlewares) - 1; i >= 0; i-- {
+		handler = r.middlewares[i](handler)
+	}
+
 	handler.ServeHTTP(w, req)
 }
 

@@ -381,26 +381,6 @@ func (r *Route) Subrouter() *Router {
 	return router
 }
 
-// SetRouter sets a router for a route.
-//
-// It will test the inner routes only if the parent route matched. For example:
-//
-//     r := mux.NewRouter()
-//     s := mux.NewRouter()
-//     r.Host("www.domain.com").SetRouter(s)
-//     s.HandleFunc("/products/", ProductsHandler)
-//     s.HandleFunc("/products/{key}", ProductHandler)
-//     s.HandleFunc("/articles/{category}/{id:[0-9]+}"), ArticleHandler)
-//
-// Here, the routes registered in the subrouter won't be tested if the host
-// doesn't match.
-func (r *Route) SetRouter(s *Router) *Router {
-	s.parent = r
-	s.strictSlash = r.strictSlash
-	r.addMatcher(s)
-	return s
-}
-
 // ----------------------------------------------------------------------------
 // URL building
 // ----------------------------------------------------------------------------
